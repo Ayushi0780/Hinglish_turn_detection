@@ -1,16 +1,15 @@
-
 # Hinglish Turn Detection
 
-A lightweight audio-based **End-of-Turn (EOT) detection system** for Hindi-English (Hinglish) speech.
+A lightweight audio-based **End-of-Turn (EOT) detection system** for Hindi-English (Hinglish) conversational speech.
 
 The system predicts whether a speaker has:
 
 * **0 — KEEP LISTENING:** the speaker may still be speaking, pausing, or trailing off.
 * **1 — TURN COMPLETE:** the speaker has likely finished their turn.
 
-The project implements **two model tiers**:
+The project implements two complementary model tiers:
 
-1. **TinyCNNGRU** — a lightweight model trained from scratch on log-mel spectrograms.
+1. **TinyCNNGRU** — a lightweight model trained completely from scratch on log-mel spectrograms.
 2. **Whisper-tiny + classification head** — a pretrained multilingual Whisper encoder with a lightweight classification head.
 
 The Gradio application in `src/demo_app.py` allows both models to be tested side-by-side on the same audio input.
@@ -19,7 +18,7 @@ The Gradio application in `src/demo_app.py` allows both models to be tested side
 
 ## Project Overview
 
-The goal is to build a turn detector that can work with conversational speech, including:
+The goal is to build a turn detector for conversational speech containing:
 
 * English
 * Hindi
@@ -32,12 +31,14 @@ The goal is to build a turn detector that can work with conversational speech, i
 For example:
 
 > "Kal mujhe office jaana hai..."
-> → KEEP LISTENING
+
+→ **KEEP LISTENING**
 
 > "Kal mujhe office jaana hai, meeting hai."
-> → TURN COMPLETE
 
-The model does not perform speech-to-text. It directly analyzes the audio signal and predicts whether the current speaker turn is complete.
+→ **TURN COMPLETE**
+
+The system does **not** perform speech-to-text. It directly analyzes the audio signal and predicts whether the current speaker turn is complete.
 
 ---
 
@@ -45,7 +46,7 @@ The model does not perform speech-to-text. It directly analyzes the audio signal
 
 ### 1. TinyCNNGRU — Efficient Tier
 
-The TinyCNNGRU model is trained **from scratch**, without using a pretrained speech encoder.
+TinyCNNGRU is trained **from scratch**, without using a pretrained speech encoder.
 
 Pipeline:
 
@@ -69,8 +70,6 @@ MLP classification head
 P(Turn Complete)
 ```
 
-The model is designed for CPU-friendly inference and provides the lightweight/efficient model tier.
-
 The architecture contains:
 
 * 2 convolutional blocks
@@ -81,11 +80,7 @@ The architecture contains:
 * Attention pooling
 * Fully connected classification head
 
-The parameter count can be obtained directly using:
-
-```bash
-python -c "import sys; sys.path.insert(0,'src'); from model import TinyCNNGRU; print(f'{TinyCNNGRU().count_params():,}')"
-```
+It is designed as the lightweight and CPU-friendly model tier.
 
 ---
 
@@ -109,30 +104,28 @@ MLP Classification Head
 P(Turn Complete)
 ```
 
-The Whisper encoder is initially frozen and the classification head is trained for the turn-detection task.
+The Whisper encoder is frozen in the trained checkpoint and a lightweight classification head is trained for the turn-detection task.
 
-This provides a stronger multilingual representation and is particularly useful for Hindi/English conversational speech.
+This provides a stronger multilingual speech representation and is useful for Hindi/English conversational speech.
 
 ---
 
 ## Why Two Models?
 
-The two models represent a practical accuracy-vs-efficiency trade-off.
+The two models demonstrate an accuracy-versus-efficiency trade-off:
 
 | Model        | Training          | Encoder            | Main Advantage                 |
 | ------------ | ----------------- | ------------------ | ------------------------------ |
 | TinyCNNGRU   | From scratch      | CNN + GRU          | Lightweight and CPU-friendly   |
 | Whisper-tiny | Transfer learning | Pretrained Whisper | Stronger speech representation |
 
-The project therefore demonstrates both:
+The project therefore demonstrates:
 
 **Efficient model → TinyCNNGRU**
 
-and
+**Accuracy-oriented model → Whisper-tiny**
 
-**Higher-accuracy model → Whisper-tiny**
-
-The Gradio demo displays predictions and inference latency for both models.
+The Gradio demo displays predictions and inference latency for both models on the same audio input.
 
 ---
 
@@ -140,9 +133,7 @@ The Gradio demo displays predictions and inference latency for both models.
 
 The project uses the Smart Turn dataset as the base dataset.
 
-The dataset contains English and Hindi-labelled samples, with the Hindi portion used in the project being synthetic.
-
-Additional synthetic Hinglish samples were generated to increase exposure to Hindi-English conversational patterns.
+The available Hindi portion used in the project is synthetic, and additional synthetic Hinglish samples were generated to increase exposure to Hindi-English conversational patterns.
 
 The training pipeline combines:
 
@@ -160,7 +151,7 @@ The final evaluation uses a **clean real test subset** rather than relying only 
 
 Synthetic test samples are excluded when calculating the final real-test performance.
 
-This is important because evaluating only on synthetic samples could give an overly optimistic estimate of real-world performance.
+This provides a more meaningful estimate of performance on real speech.
 
 ---
 
@@ -173,75 +164,105 @@ Sample rate : 16 kHz
 Window      : 2.5 seconds
 ```
 
-For the TinyCNNGRU:
+### TinyCNNGRU
 
 ```text
-64 Mel-frequency bins
-Hop length = 160
-FFT size   = 400
+Mel bins    : 64
+Hop length : 160
+FFT size   : 400
 ```
 
-For Whisper:
+### Whisper
 
 ```text
-WhisperFeatureExtractor
-openai/whisper-tiny
+Feature extractor : WhisperFeatureExtractor
+Model             : openai/whisper-tiny
 ```
 
 For variable-length recordings, the final 2.5 seconds are used for prediction.
 
 ---
 
-## Training
+## Included Model Weights
 
-### Train TinyCNNGRU
+**The repository already contains the trained model checkpoints.**
 
-From the project root:
-
-```bash
-python src/train.py --model tiny --epochs 15 --manifest data/processed_test/manifest.csv --extra_manifest hinglish_data/manifest.csv --hinglish_oversample 1
-```
-
-The best model is saved as:
+You do **not** need to train the models before running the Gradio demo.
 
 ```text
-checkpoints/tiny_best.pt
+checkpoints/
+├── tiny_best.pt       (~948 KB)
+└── whisper_best.pt    (~32 MB)
 ```
 
-### Train Whisper
-
-```bash
-python src/train.py --model whisper --epochs 6 --freeze_encoder --manifest data/processed_test/manifest.csv --extra_manifest hinglish_data/manifest.csv --hinglish_oversample 1
-```
-
-The best Whisper checkpoint is saved as:
+Approximate total model-weight size:
 
 ```text
-checkpoints/whisper_best.pt
+~33 MB
 ```
+
+These checkpoints are loaded automatically by `src/demo_app.py`.
+
+Therefore, the evaluator can directly clone the repository, install the dependencies, and run the demo without retraining.
 
 ---
 
-## Threshold Tuning
+## Running the Demo
 
-The classifier produces a probability:
+### 1. Clone the repository
+
+```bash
+git clone <repository-url>
+cd Hinglish_turn_detection
+```
+
+### 2. Install dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+### 3. Run the Gradio demo
+
+```bash
+python src/demo_app.py
+```
+
+Gradio will provide a local URL in the terminal.
+
+Open the URL in a browser and use the microphone or upload an audio file.
+
+### The demo provides
+
+1. Microphone recording
+2. Audio-file upload
+3. Prediction from TinyCNNGRU
+4. Prediction from Whisper-tiny
+5. Turn-complete probability
+6. Final classification
+7. Inference latency for both models
+
+Both models receive the same audio input, making the comparison easy to observe.
+
+---
+
+## Prediction Interpretation
+
+The models output:
 
 ```text
 P(Turn Complete)
 ```
 
-A default threshold of `0.50` corresponds to:
+Using the default threshold:
 
 ```text
 probability >= 0.50 → TURN COMPLETE
-probability <  0.50 → KEEP LISTENING
+
+probability < 0.50 → KEEP LISTENING
 ```
 
-The training pipeline also performs validation-based threshold tuning.
-
-The threshold is selected using the **validation set only** and is then applied to the test set.
-
-This prevents the test set from being used to optimize the decision threshold.
+The threshold was selected/tuned using validation data during experimentation. The clean test set was kept separate from threshold optimization.
 
 ---
 
@@ -272,40 +293,7 @@ Confusion Matrix:
  [ 3  8]]
 ```
 
-These results should be interpreted cautiously because the clean real test set used in this experiment is small.
-
----
-
-## Gradio Demo
-
-The main interactive demo is:
-
-```text
-src/demo_app.py
-```
-
-Run it with:
-
-```bash
-python src/demo_app.py
-```
-
-The application allows the user to:
-
-1. Record audio using the microphone.
-2. Upload an audio file.
-3. Send the same audio to both models.
-4. View the predicted probability.
-5. View whether the model predicts `TURN COMPLETE` or `STILL SPEAKING`.
-6. Compare inference latency between the two model tiers.
-
-The demo displays:
-
-```text
-Tiny CNN-GRU (efficient tier)
-              vs.
-Whisper-tiny + head (accurate tier)
-```
+The clean real test set is relatively small, so these metrics should be interpreted cautiously.
 
 ---
 
@@ -313,6 +301,10 @@ Whisper-tiny + head (accurate tier)
 
 ```text
 Hinglish_turn_detection/
+│
+├── checkpoints/
+│   ├── tiny_best.pt
+│   └── whisper_best.pt
 │
 ├── src/
 │   ├── analyze_real_test.py
@@ -352,7 +344,7 @@ Contains dataset loading and audio dataset classes.
 
 **`src/data_prep.py`**
 
-Prepares the Smart Turn dataset and creates the processed manifest.
+Prepares the Smart Turn data and creates the processed manifest.
 
 **`src/generate_synthetic_hinglish.py`**
 
@@ -360,7 +352,9 @@ Creates synthetic Hinglish augmentation data.
 
 **`src/train.py`**
 
-Contains the complete training pipeline for both TinyCNNGRU and Whisper.
+Contains the training pipeline used to train both model variants.
+
+Training is **not required to run the submitted demo**, because the trained checkpoints are already included in `checkpoints/`.
 
 **`src/evaluate.py`**
 
@@ -368,11 +362,11 @@ Evaluates the trained model.
 
 **`src/evaluate_hinglish.py`**
 
-Evaluates performance on the Hinglish evaluation data.
+Evaluates performance on Hinglish evaluation data.
 
 **`src/evaluate_whisper.py`**
 
-Evaluates the Whisper model, including the clean real test evaluation.
+Evaluates the Whisper model, including clean real-test evaluation.
 
 **`src/analyze_real_test.py`**
 
@@ -380,7 +374,7 @@ Analyzes the real test set.
 
 **`src/demo_app.py`**
 
-Gradio application for comparing the TinyCNNGRU and Whisper models.
+The main Gradio application for comparing TinyCNNGRU and Whisper-tiny.
 
 **`src/realtime_whisper.py`**
 
@@ -404,29 +398,59 @@ Pause/silence-based baseline.
 
 ---
 
-## Running the Demo
+## Training — Optional
 
-Install dependencies:
+Training is **not required for the submitted demo** because trained checkpoints are already included.
+
+The training scripts are retained for reproducibility and further experimentation.
+
+### Train TinyCNNGRU
 
 ```bash
-pip install -r requirements.txt
+python src/train.py --model tiny --epochs 15 --manifest data/processed_test/manifest.csv --extra_manifest hinglish_data/manifest.csv --hinglish_oversample 1
 ```
 
-Make sure the trained checkpoints exist:
+Output:
 
 ```text
-checkpoints/
-├── tiny_best.pt
-└── whisper_best.pt
+checkpoints/tiny_best.pt
 ```
 
-Then run:
+### Train Whisper
 
 ```bash
-python src/demo_app.py
+python src/train.py --model whisper --epochs 6 --freeze_encoder --manifest data/processed_test/manifest.csv --extra_manifest hinglish_data/manifest.csv --hinglish_oversample 1
 ```
 
-Gradio will provide a local URL in the terminal.
+Output:
+
+```text
+checkpoints/whisper_best.pt
+```
+
+These commands are provided only for reproduction or further model development.
+
+---
+
+## Experimental Components
+
+The repository also contains several experimental and evaluation components used during development:
+
+```text
+baseline_pause.py
+baseline_classical.py
+evaluate.py
+evaluate_hinglish.py
+evaluate_whisper.py
+analyze_real_test.py
+export_onnx.py
+realtime_whisper.py
+test_microphone.py
+```
+
+These were used to understand the problem from multiple perspectives, establish baselines, evaluate the models, test microphone input, and explore lightweight deployment options.
+
+The **submitted interactive demo** is `src/demo_app.py`.
 
 ---
 
@@ -438,7 +462,9 @@ The training pipeline uses a fixed random seed by default:
 seed = 42
 ```
 
-The train/validation/test split is kept separate, and validation data is used for model selection and threshold tuning.
+The train/validation/test split is kept separate.
+
+Validation data is used for model selection and threshold tuning.
 
 The clean real test set is reserved for final evaluation.
 
@@ -467,7 +493,7 @@ Potential improvements include:
 
 1. Collecting more real Hindi and Hinglish conversational recordings.
 2. Increasing speaker diversity.
-3. Adding real-world background noise augmentation.
+3. Adding real-world background-noise augmentation.
 4. Training with more incomplete-turn examples containing fillers such as:
 
    * "umm..."
@@ -489,22 +515,38 @@ Potential improvements include:
 This project explores two complementary approaches to audio turn detection for Hinglish conversational speech:
 
 ```text
-                    Audio
-                      │
-             ┌────────┴────────┐
-             │                 │
-       TinyCNNGRU          Whisper-tiny
-       From scratch       Pretrained encoder
-             │                 │
-        Efficient          More accurate
-             │                 │
-             └────────┬────────┘
-                      │
-              Turn prediction
-                      │
-          ┌───────────┴───────────┐
-          │                       │
-   KEEP LISTENING          TURN COMPLETE
+                         Audio
+                           │
+                ┌──────────┴──────────┐
+                │                     │
+           TinyCNNGRU            Whisper-tiny
+           From scratch        Pretrained encoder
+                │                     │
+             Efficient          Accuracy-oriented
+                │                     │
+                └──────────┬──────────┘
+                           │
+                    Turn prediction
+                           │
+              ┌────────────┴────────────┐
+              │                         │
+        KEEP LISTENING            TURN COMPLETE
 ```
 
-The final system provides both a lightweight model suitable for CPU-oriented deployment and a stronger pretrained baseline for comparison.
+The final repository includes the trained model weights, source code, evaluation utilities, and Gradio demo.
+
+**To run the submitted demo, training is not required.**
+
+```bash
+# Create virtual environment
+python -m venv venv
+
+# Activate it — Windows
+venv\Scripts\activate
+
+
+pip install -r requirements.txt
+python src/demo_app.py
+```
+
+The system therefore provides both a lightweight model suitable for CPU-oriented inference and a stronger pretrained model for comparison.
