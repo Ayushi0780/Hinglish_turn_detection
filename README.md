@@ -1,4 +1,4 @@
-# Hinglish_turn_detection
+
 # Hinglish Turn Detection
 
 A lightweight audio-based **End-of-Turn (EOT) detection system** for Hindi-English (Hinglish) speech.
