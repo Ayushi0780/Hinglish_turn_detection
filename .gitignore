@@ -1,0 +1,63 @@
+venv/
+.venv/
+__pycache__/
+*.pyc
+.cache/
+cache/
+data/raw/
+*.parquet
+.env
+/venv
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Model checkpoints
+checkpoints/
+*.pt
+*.pth
+
+# Generated data
+data/
+cache/
+hinglish_data/
+/cache/
+
+# Audio
+*.wav
+*.mp3
+*.flac
+
+# IDE
+.vscode/
+.idea/
+
+# Environment
+.env
+
+# OS
+.DS_Store
+Thumbs.db
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# Model checkpoints
+checkpoints/
+*.pt
+
+# Dataset / generated audio
+data/
+hinglish_data/
+*.wav
+
+# Cachecat .gitignore
+cache/
+
+# OS
+.DS_Store
+Thumbs.db
